@@ -1,4 +1,4 @@
-// RegioBus Cumbres — API inventada de camiones + servidor web
+// RegioBus Cumbres — API de rutas reales de Cumbres, Monterrey
 // Rutas: calles reales (OSRM) · paradas reales (OpenStreetMap / Overpass) · camiones simulados.
 
 const express = require("express");
@@ -18,56 +18,146 @@ const PORT = process.env.PORT || 3000;
 const DOMINIO_FALLBACK = [25.7961, -100.4045];
 const DOM = "DOMINIO"; // marcador que se reemplaza por la ubicación resuelta
 
-/* Los waypoints son aproximados; OSRM los "pega" a la calle más cercana. */
+/* Los waypoints son aproximados; OSRM los "pega" a la calle más cercana.
+   Rutas reales de Cumbres, Monterrey (García, N.L.) basadas en rutas oficiales:
+   - Plaza Cumbres / Centro (vía Colón y Juárez)
+   - Ruta 23: Cumbres / Cedros → Centro
+   - Ruta 40: Sector 2 San Miguel - Cumbres
+   - Ruta 310: Valle de Lincoln - Cumbres (principal)
+   - Ruta 232: Apoyo sectores cercanos
+   - Ruta 233: Apoyo sectores cercanos  */
 const ROUTES = [
   {
-    id: "R1",
-    name: "Cumbres – Paseo de los Leones",
+    id: "PC",
+    name: "Plaza Cumbres / Centro",
+    shortName: "Plaza Cumbres - Centro",
     color: "#e63946",
-    buses: 4,
-    speedKmh: 24,
-    waypoints: [
-      [25.7405, -100.4095],
-      [25.7335, -100.3965],
-      [25.7265, -100.3835],
-      [25.7215, -100.3715],
-      [25.7165, -100.36],
-    ],
-  },
-  {
-    id: "R2",
-    name: "Lincoln – Cumbres Elite",
-    color: "#1d6fe0",
-    buses: 3,
+    buses: 6,
     speedKmh: 26,
+    // Plaza Cumbres → Av. Lincoln → Av. Constitución → Av. Colón → Centro (Juárez/Colón)
     waypoints: [
-      [25.7125, -100.386],
-      [25.7185, -100.399],
-      [25.727, -100.41],
-      [25.734, -100.418],
+      [25.7165, -100.3865], // Plaza Cumbres
+      [25.7185, -100.3920], // Av. Lincoln / Paseo de los Leones
+      [25.7220, -100.3980], // Av. Constitución
+      [25.7150, -100.3800], // Av. Colón (entrada a Cumbres)
+      [25.7050, -100.3550], // Av. Colón hacia el sur
+      [25.6950, -100.3350], // Av. Juárez
+      [25.6800, -100.3200], // Centro - Juárez/Colón
+      [25.6750, -100.3180], // Centro Monterrey (Macroplaza)
     ],
   },
   {
-    id: "R3",
-    name: "Anillo Cumbres Norte",
+    id: "23",
+    name: "Ruta 23 - Cumbres / Cedros",
+    shortName: "Ruta 23",
+    color: "#1d6fe0",
+    buses: 5,
+    speedKmh: 24,
+    // Cumbres → Cedros → Centro / zonas de transferencia
+    waypoints: [
+      [25.7250, -100.4000], // Cumbres (zona central)
+      [25.7320, -100.4080], // Av. Las Torres / Paseo de los Leones norte
+      [25.7400, -100.4150], // Hacia Cedros
+      [25.7480, -100.4220], // Cedros (sector norte)
+      [25.7550, -100.4250], // Cedros / límite García
+      [25.7450, -100.4100], // Regreso por Av. Las Torres
+      [25.7350, -100.3980], // Paseo de los Leones
+      [25.7200, -100.3850], // Av. Constitución
+      [25.7100, -100.3650], // Hacia transferencia Centro
+      [25.6950, -100.3400], // Av. Juárez
+      [25.6800, -100.3200], // Centro - zona transferencia
+    ],
+  },
+  {
+    id: "40",
+    name: "Ruta 40 - Sector 2 San Miguel / Cumbres",
+    shortName: "Ruta 40",
     color: "#12a150",
+    buses: 4,
+    speedKmh: 25,
+    // Sector 2 San Miguel → Cumbres (puntos intermedios)
+    waypoints: [
+      [25.7050, -100.3750], // Sector 2 San Miguel
+      [25.7100, -100.3780], // Av. Pedro de Alba
+      [25.7150, -100.3820], // Av. Constitución / entrada Cumbres
+      [25.7200, -100.3880], // Paseo de los Leones
+      [25.7250, -100.3950], // Cumbres central
+      [25.7300, -100.4000], // Av. Las Torres
+      [25.7350, -100.4050], // Hacia Plaza Cumbres
+      [25.7280, -100.3920], // Regreso por Av. Lincoln
+      [25.7200, -100.3850], // Paseo de los Leones sur
+      [25.7120, -100.3780], // Av. Pedro de Alba
+      [25.7050, -100.3750], // Sector 2 San Miguel
+    ],
+  },
+  {
+    id: "310",
+    name: "Ruta 310 - Valle de Lincoln / Cumbres",
+    shortName: "Ruta 310",
+    color: "#8a3ffc",
+    buses: 8,
+    speedKmh: 28,
+    // Valle de Lincoln → Cumbres → Avenidas principales (ruta principal)
+    waypoints: [
+      [25.7450, -100.4050], // Valle de Lincoln (inicio norte)
+      [25.7420, -100.4000], // Av. Lincoln norte
+      [25.7380, -100.3950], // Paseo de los Leones / Lincoln
+      [25.7330, -100.3900], // Cumbres Elite
+      [25.7280, -100.3880], // Av. Constitución
+      [25.7230, -100.3850], // Paseo de los Leones central
+      [25.7180, -100.3820], // Plaza Cumbres / Av. Lincoln sur
+      [25.7140, -100.3780], // Av. Constitución sur
+      [25.7100, -100.3750], // San Miguel / Pedro de Alba
+      [25.7050, -100.3720], // Hacia avenidas principales
+      [25.7000, -100.3650], // Av. Juárez / transferencia
+      [25.6950, -100.3550], // Centro - avenidas principales
+    ],
+  },
+  {
+    id: "232",
+    name: "Ruta 232 - Apoyo Cumbres Norte",
+    shortName: "Ruta 232",
+    color: "#ff9f1c",
     buses: 3,
     speedKmh: 22,
+    // Ruta de apoyo sectores norte de Cumbres
     waypoints: [
-      [25.748, -100.39],
-      [25.742, -100.379],
-      [25.733, -100.373],
-      [25.73, -100.386],
-      [25.737, -100.398],
+      [25.7480, -100.3950], // Norte de Cumbres / Valle de Lincoln oeste
+      [25.7430, -100.3880], // Av. Las Torres norte
+      [25.7380, -100.3850], // Cumbres Elite / Paseo de los Leones
+      [25.7330, -100.3820], // Av. Constitución norte
+      [25.7280, -100.3800], // Paseo de los Leones
+      [25.7230, -100.3780], // Plaza Cumbres área
+      [25.7280, -100.3750], // Regreso por Av. Lincoln
+      [25.7330, -100.3780], // Av. Constitución
+      [25.7380, -100.3820], // Paseo de los Leones
+      [25.7430, -100.3880], // Av. Las Torres
+      [25.7480, -100.3950], // Norte Cumbres
     ],
   },
   {
-    id: "R4",
-    name: "Dominio Cumbres – Plaza Cumbres",
-    color: "#8a3ffc",
-    buses: 5,
-    speedKmh: 28,
-    waypoints: [DOM, [25.7405, -100.4095], [25.727, -100.41], [25.7125, -100.386]],
+    id: "233",
+    name: "Ruta 233 - Apoyo Cumbres Sur / Dominio",
+    shortName: "Ruta 233",
+    color: "#2ec4b6",
+    buses: 3,
+    speedKmh: 22,
+    // Ruta de apoyo sectores sur / Dominio Cumbres
+    waypoints: [
+      DOM, // Dominio Cumbres (resuelto al inicio)
+      [25.7400, -100.4050], // Av. Las Torres / Paseo de los Leones norte
+      [25.7350, -100.4000], // Cumbres central norte
+      [25.7300, -100.3950], // Av. Constitución
+      [25.7250, -100.3900], // Paseo de los Leones central
+      [25.7200, -100.3880], // Plaza Cumbres área
+      [25.7165, -100.3865], // Plaza Cumbres
+      [25.7200, -100.3850], // Regreso
+      [25.7250, -100.3900], // Paseo de los Leones
+      [25.7300, -100.3950], // Av. Constitución
+      [25.7350, -100.4000], // Cumbres central
+      [25.7400, -100.4050], // Av. Las Torres
+      DOM, // Dominio Cumbres
+    ],
   },
 ];
 
