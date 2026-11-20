@@ -33,6 +33,14 @@ npm run dev          # Vite en http://localhost:5173 (proxy a /api)
    - Start Command: `npm start`
 3. Listo. En el plan gratis el servidor se duerme tras 15 min sin visitas y tarda ~30 s en despertar.
 
+## Desplegar en Vercel
+
+Importa el repositorio en Vercel. El proyecto ya incluye `vercel.json` y un handler
+serverless para las rutas `/api/v1/*`; Vercel ejecutará el build de Vite y servirá
+el frontend desde `dist`.
+
+No necesitas configurar un comando de instalación ni un start command manualmente.
+
 ## Endpoints
 
 | Método | Ruta | Qué devuelve |

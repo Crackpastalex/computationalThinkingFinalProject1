@@ -495,5 +495,11 @@ api.get("/stations/:id/arrivals", (req, res) => {
 app.use("/api/v1", api);
 app.use(express.static(path.join(__dirname, "dist")));
 
-app.listen(PORT, () => console.log(`RegioBus escuchando en :${PORT}`));
-init().catch((e) => console.error("Fallo al iniciar:", e));
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`RegioBus escuchando en :${PORT}`));
+  init().catch((e) => console.error("Fallo al iniciar:", e));
+} else {
+  init().catch((e) => console.error("Fallo al iniciar:", e));
+}
+
+module.exports = app;
